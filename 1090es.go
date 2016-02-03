@@ -49,28 +49,56 @@ func decodeDump1090Fmt(s string) ([]byte, error) {
 	return b, nil
 }
 
-// A '10' in ret is a 1 in packet, a '01' in ret is a 0 in packet.
-func encodeBit(z uint8) int16 {
-	return int16(1 << z)
+func encodeBit(b uint8) []byte {
+	ret := make([]byte, 2)
+	if b != 0 {
+		ret[0] = 1
+	} else {
+		ret[1] = 1
+	}
+	return ret
 }
 
-// Each bit represents 0.5µs in time domain.
-func createPacket(packet []byte) []int16 {
+// Each byte returned represents 0.5µs in time domain.
+func createPacket(packet []byte) []byte {
 	// 8µs preamble. 16 bits.
-	ret := make([]int16, 1)
-	ret[0] = -0x5f60 // 0xA0A0
+	ret := make([]byte, 16)
+	ret[0] = 1
+	ret[1] = 0
+	ret[2] = 1
+	// ...
+	ret[7] = 1
+	ret[8] = 0
+	ret[9] = 1
 
 	// Now we translate each bit of 'packet' into a 1µs code.
+	// A '10' in ret is a 1 in packet, a '01' in ret is a 0 in packet.
+
 	for i := 0; i < len(packet); i++ {
-		enc := int16(int32(encodeBit((uint8(packet[i])&0x80)>>7)) << 14)
-		enc = enc | (encodeBit((uint8(packet[i])&0x40)>>6) << 12)
-		enc = enc | (encodeBit((uint8(packet[i])&0x20)>>5) << 10)
-		enc = enc | (encodeBit((uint8(packet[i])&0x10)>>4) << 8)
-		enc = enc | (encodeBit((uint8(packet[i])&0x08)>>3) << 6)
-		enc = enc | (encodeBit((uint8(packet[i])&0x04)>>2) << 4)
-		enc = enc | (encodeBit((uint8(packet[i])&0x02)>>1) << 2)
-		enc = enc | (encodeBit(uint8(packet[i]) & 0x01))
-		ret = append(ret, enc)
+		ret = append(ret, encodeBit((uint8(packet[i])&0x80)>>7)...)
+		ret = append(ret, encodeBit((uint8(packet[i])&0x40)>>6)...)
+		ret = append(ret, encodeBit((uint8(packet[i])&0x20)>>5)...)
+		ret = append(ret, encodeBit((uint8(packet[i])&0x10)>>4)...)
+		ret = append(ret, encodeBit((uint8(packet[i])&0x08)>>3)...)
+		ret = append(ret, encodeBit((uint8(packet[i])&0x04)>>2)...)
+		ret = append(ret, encodeBit((uint8(packet[i])&0x02)>>1)...)
+		ret = append(ret, encodeBit(uint8(packet[i])&0x01)...)
+	}
+	return ret
+}
+
+func iqFileOut(packet []byte) []byte {
+	ret := make([]byte, 0)
+	for i := 0; i < len(packet); i++ {
+		iq := make([]byte, 2)
+		if packet[i] != 0 {
+			iq[0] = 50
+			iq[1] = 50
+		} else {
+			iq[0] = 127
+			iq[1] = 127
+		}
+		ret = append(ret, iq...)
 	}
 	return ret
 }
@@ -84,19 +112,18 @@ func main() {
 	}
 	p := createPacket(f)
 
-	j := make([]byte, 2*len(p))
-	for i := 0; i < len(p); i++ {
-		j[2*i] = byte(p[i] >> 8)
-		j[(2*i)+1] = byte(p[i] & 0xFF)
-	}
-
 	fmt.Printf("%d\n", len(p))
 
-	fmt.Printf("%s\n", hex.Dump(j))
+	fmt.Printf("%s\n", hex.Dump(p))
 	fOut, err := os.Create("1090es.bin")
 	if err != nil {
 		panic(err)
 	}
 	defer fOut.Close()
-	fOut.Write(j)
+	iq := iqFileOut(p)
+	fmt.Printf("len=%d\n", len(iq))
+	fmt.Printf("%s\n", hex.Dump(iq))
+	//	for i := 0; i < 1000; i++ {
+	fOut.Write(iq)
+	//	}
 }
