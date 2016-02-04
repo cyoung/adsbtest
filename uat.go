@@ -80,10 +80,25 @@ func encodePacket(packet []bool) []iq {
 	return ret
 }
 
+// "12.4.4.2.2.3  Interleaving Procedure".
+//func interleavePacket(packet []byte) []byte {
+//}
+
 // Expand into bits (bool).
 func createPacket(packet []byte) []iq {
 	// 36 bit preamble.
 	ret := UPLINK_SYNC_WORD
+
+	// Split into 72-byte slices.
+	slicedPacket := make([][]byte, 0)
+	for i := 0; i < UAT_LONG_LEN; i += 72 {
+		slicedPacket = append(slicedPacket, packet[i:i+72])
+	}
+
+	// Reed-Solomon, FEC. "14.4.4.2.2.2 FEC Parity (before interleaving and after de-interleaving)".
+
+	// Interleave the message.
+	//	packet = interleavePacket(packet)
 
 	// Now we translate each bit of 'packet' into a bool value.
 
