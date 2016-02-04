@@ -92,8 +92,8 @@ func iqFileOut(packet []byte) []byte {
 	for i := 0; i < len(packet); i++ {
 		iq := make([]byte, 2)
 		if packet[i] != 0 {
-			iq[0] = 50
-			iq[1] = 50
+			iq[0] = 64
+			iq[1] = 127
 		} else {
 			iq[0] = 127
 			iq[1] = 127
@@ -123,7 +123,10 @@ func main() {
 	iq := iqFileOut(p)
 	fmt.Printf("len=%d\n", len(iq))
 	fmt.Printf("%s\n", hex.Dump(iq))
-	//	for i := 0; i < 1000; i++ {
-	fOut.Write(iq)
-	//	}
+
+	spacing := make([]byte, 100)
+	for i := 0; i < 1000; i++ {
+		fOut.Write(iq)
+		fOut.Write(spacing)
+	}
 }
