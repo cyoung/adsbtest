@@ -25,17 +25,21 @@ import (
 #cgo darwin LDFLAGS: -L. -lschifra_reed_solomon -lstdc++ -lm
 #include <stdlib.h>
 #include <stdint.h>
-extern void doRS(char *buf_in, char *buf_out);
+extern void doRS(char *buf);
 */
 import "C"
 import "unsafe"
 
 func doRS(buf []byte) []byte {
-	ret := make([]byte, 255)
 	if len(buf) != 72 {
 		panic("doRS(): input not right length.")
 	}
-	C.doRS((*C.char)(unsafe.Pointer(&buf[0])), (*C.char)(unsafe.Pointer(&ret[0])))
+	ret := make([]byte, 0)
+	ret = append(ret, make([]byte, 163)...)
+
+	ret = append(ret, buf...)
+	C.doRS((*C.char)(unsafe.Pointer(&ret[0])))
+	fmt.Printf("%d %v\n", len(ret), ret)
 	ret = ret[235:]
 	return ret
 }
@@ -101,8 +105,18 @@ func encodePacket(packet []bool) []iq {
 }
 
 // "12.4.4.2.2.3  Interleaving Procedure".
-//func interleavePacket(packet []byte) []byte {
-//}
+// Returns an array of bytes in transmission order.
+func interleavePacket(slicedPacket [][]byte) []byte {
+	// Assume that all of the internal slices are of the same size.
+	//FIXME: error checking.
+	ret := make([]byte, 0)
+	for i := 0; i < 92; i++ {
+		for j := 0; j < 6; j++ {
+			ret = append(ret, slicedPacket[j][i])
+		}
+	}
+	return ret
+}
 
 // Expand into bits (bool).
 func createPacket(packet []byte) []iq {
@@ -116,13 +130,17 @@ func createPacket(packet []byte) []iq {
 	}
 
 	// Reed-Solomon, FEC. "14.4.4.2.2.2 FEC Parity (before interleaving and after de-interleaving)".
-	zz := doRS(slicedPacket[0])
-	fmt.Printf("z\n%s\n", hex.Dump(slicedPacket[0]))
-	fmt.Printf("cha\n%s\n", hex.Dump(zz))
-	os.Exit(1)
+	for i := 0; i < len(slicedPacket); i++ {
+		// Append the Reed-Solomon parity bits to the end of the 72 byte row.
+		rs_p := doRS(slicedPacket[i])
+		slicedPacket[i] = append(slicedPacket[i], rs_p...)
+		fmt.Printf("%d (%d): %s\n", i, len(slicedPacket[i]), hex.Dump(slicedPacket[i]))
+	}
 	// Interleave the message.
-	//	packet = interleavePacket(packet)
 
+	//	packet = interleavePacket(packet)
+	packet = interleavePacket(slicedPacket)
+	fmt.Printf("done-\n%s\n", hex.Dump(packet))
 	// Now we translate each bit of 'packet' into a bool value.
 
 	for i := 0; i < len(packet); i++ {
@@ -149,6 +167,11 @@ func iqFileOut(packet []iq) []byte {
 }
 
 func main() {
+	ee, _ := hex.DecodeString("0dd90007150b3908050b39c51243b0b80005800021bcc09082102d53cc00082efc1e012d43cc000000000100000fd9000f1300120813000fc46743b25400158000213d1ed082102cb9526ade833b9ee34eb34a04fdb4a1c6d96586a8")
+	fmt.Printf("a\n%s\n\n", hex.Dump(ee))
+	eee := doRS(ee[:72])
+	fmt.Printf("b\n%s\n\n", hex.Dump(eee))
+	return
 	testMessage := "31db57800c92ae60148006745f105011a02c31c9832db2cf4e5a832df0c2fcb7cb4833d70c342d4810d9336008b3b0cf5f5e741e00002d0eaac08210000000ff0c51b92000000000efd304011a1518011b0300c5aba371de58c598c33d2658c372631b8e58c430434ab658c5aba371de581e00002d0eaac08210000000ff0c51b72000000000efd304011a1518011b0300c5aba371de58c598c33d2658c372631b8e58c430434ab658c5aba371de582180067403503455014a02c15cd832df0c35cda8015543e0c35c30d4b520c704cd803312830cefc30801cf0cb481234b8013f2813310cb4ca079c114c30cb8c30c30f5e7402180067403503455014a02ca092832df0c35cda8015543e0c36c30d0b520c704cd803312830c6f370c60073c32da048d2e004fca04cc432d3781e704530c30db1c31c7d79d2180067403503455014a02c83d4832df0c35cda8015543e0cf5c30ccb520c704cd803312830def370ca0073c32d2048d2e004fca04cc432d3181e704530c37cb1c31dfd79d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 	f, err := decodeDumpFmt(testMessage)
 	fmt.Printf("%s\n", hex.Dump(f))

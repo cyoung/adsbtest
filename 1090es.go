@@ -87,16 +87,22 @@ func createPacket(packet []byte) []byte {
 	return ret
 }
 
+// SC16Q11 for BladeRF.
+type iq struct {
+	i int16
+	q int16
+}
+
 func iqFileOut(packet []byte) []byte {
 	ret := make([]byte, 0)
 	for i := 0; i < len(packet); i++ {
 		iq := make([]byte, 2)
 		if packet[i] != 0 {
-			iq[0] = 64
-			iq[1] = 127
+			iq[0] = 1024
+			iq[1] = 2048
 		} else {
-			iq[0] = 127
-			iq[1] = 127
+			iq[0] = 2048
+			iq[1] = 2048
 		}
 		ret = append(ret, iq...)
 	}
