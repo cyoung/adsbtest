@@ -20,6 +20,26 @@ import (
 
 */
 
+/*
+#cgo linux LDFLAGS: -L. -lschifra_reed_solomon -lstdc++ -lm
+#cgo darwin LDFLAGS: -L. -lschifra_reed_solomon -lstdc++ -lm
+#include <stdlib.h>
+#include <stdint.h>
+extern void doRS(char *buf_in, char *buf_out);
+*/
+import "C"
+import "unsafe"
+
+func doRS(buf []byte) []byte {
+	ret := make([]byte, 255)
+	if len(buf) != 72 {
+		panic("doRS(): input not right length.")
+	}
+	C.doRS((*C.char)(unsafe.Pointer(&buf[0])), (*C.char)(unsafe.Pointer(&ret[0])))
+	ret = ret[235:]
+	return ret
+}
+
 const (
 	UAT_LONG_LEN = 432 // Bytes.
 )
@@ -96,7 +116,10 @@ func createPacket(packet []byte) []iq {
 	}
 
 	// Reed-Solomon, FEC. "14.4.4.2.2.2 FEC Parity (before interleaving and after de-interleaving)".
-
+	zz := doRS(slicedPacket[0])
+	fmt.Printf("z\n%s\n", hex.Dump(slicedPacket[0]))
+	fmt.Printf("cha\n%s\n", hex.Dump(zz))
+	os.Exit(1)
 	// Interleave the message.
 	//	packet = interleavePacket(packet)
 
