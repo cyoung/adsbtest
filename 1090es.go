@@ -93,7 +93,19 @@ type iq struct {
 	q int16
 }
 
+// Fixed factor of 10x.
+func interpolate(packet []byte) []byte {
+	ret := make([]byte, 10*len(packet))
+	for i := 0; i < len(packet); i++ {
+		for j := 0; j < 10; j++ {
+			ret[10*i+j] = packet[i]
+		}
+	}
+	return ret
+}
+
 func iqFileOut(packet []byte) []byte {
+	packet = interpolate(packet)
 	v := make([]iq, len(packet))
 	for i := 0; i < len(packet); i++ {
 		if packet[i] != 0 {
