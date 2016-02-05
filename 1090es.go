@@ -94,17 +94,23 @@ type iq struct {
 }
 
 func iqFileOut(packet []byte) []byte {
-	ret := make([]byte, 0)
+	v := make([]iq, len(packet))
 	for i := 0; i < len(packet); i++ {
-		iq := make([]byte, 2)
 		if packet[i] != 0 {
-			iq[0] = 1024
-			iq[1] = 2048
+			v[i].i = 1024
+			v[i].q = 2048
 		} else {
-			iq[0] = 2048
-			iq[1] = 2048
+			v[i].i = 2048
+			v[i].q = 2048
 		}
-		ret = append(ret, iq...)
+	}
+
+	ret := make([]byte, len(packet)*4)
+	for i := 0; i < len(v); i++ {
+		ret[4*i] = byte(v[i].i >> 8)
+		ret[4*i+1] = byte(v[i].i & 0xFF)
+		ret[4*i+2] = byte(v[i].q >> 8)
+		ret[4*i+3] = byte(v[i].q & 0xFF)
 	}
 	return ret
 }
