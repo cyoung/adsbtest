@@ -105,15 +105,19 @@ func interpolate(packet []byte) []byte {
 }
 
 func iqFileOut(packet []byte) []byte {
-	packet = interpolate(packet)
+	// Add some white space to sync up on the other end for testing.
+	spacing := make([]byte, 800)
+	packet = append(packet, spacing...)
+	//	packet = interpolate(packet)
+
 	v := make([]iq, len(packet))
 	for i := 0; i < len(packet); i++ {
 		if packet[i] != 0 {
-			v[i].i = 1024
-			v[i].q = 2048
+			v[i].i = 2040
+			v[i].q = 0
 		} else {
-			v[i].i = 2048
-			v[i].q = 2048
+			v[i].i = 0
+			v[i].q = 0
 		}
 	}
 
@@ -148,9 +152,7 @@ func main() {
 	fmt.Printf("len=%d\n", len(iq))
 	fmt.Printf("%s\n", hex.Dump(iq))
 
-	spacing := make([]byte, 100)
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10000; i++ {
 		fOut.Write(iq)
-		fOut.Write(spacing)
 	}
 }
