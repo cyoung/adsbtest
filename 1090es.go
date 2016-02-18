@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// Testing: sudo rtl_sdr -f 914000000 -s 2000000 -g -1 - | ./dump1090 --ifile -
+
 /*
 *8da826f558b5027c79975332ba18;
 CRC: 000000 (ok)
