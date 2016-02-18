@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"errors"
+	"flag"
 	"fmt"
 	"strings"
 )
@@ -40,7 +41,7 @@ void bladeRFDeinit() {
 	bladerf_close(dev);
 }
 
-int bladeRFInit() {
+int bladeRFInit(int txvga1, int txvga2) {
 	int status = 0;
 	// Open device.
 	status = bladerf_open(&dev, "");
@@ -88,11 +89,11 @@ printf("bladerf_enable_module\n");
 	if (status != 0) return status;
 
 	// Set txvga1 (post-LPF gain) to -18dB.
-	status = bladerf_set_txvga1(dev, -4);
-printf("bladerf_set_txvga1\n");
+	status = bladerf_set_txvga1(dev, txvga1);
+printf("bladerf_set_txvga1 set to %d\n", txvga1);
 
-	status = bladerf_set_txvga2(dev, 8);
-printf("bladerf_set_txvga2\n");
+	status = bladerf_set_txvga2(dev, txvga2);
+printf("bladerf_set_txvga2 set to %d\n", txvga2);
 
 
 	return status;
@@ -121,8 +122,8 @@ func bladeRFDeinit() {
 	C.bladeRFDeinit()
 }
 
-func bladeRFInit() int {
-	i := int(C.bladeRFInit())
+func bladeRFInit(txvga1, txvga2 int) int {
+	i := int(C.bladeRFInit(txvga1, txvga2))
 	fmt.Printf("bladeRFInit=%d\n", i)
 	return i
 }
@@ -234,7 +235,17 @@ func iqOut(packet []byte) ([]byte, []iq) {
 }
 
 func main() {
-	bladeRFInit()
+	airFlag := flag.Bool("air", false, "Air")
+	flag.Parse()
+
+	txvga1 := -4
+	txvga2 := 0
+	if *airFlag == true {
+		txvga1 = -4
+		txvga2 = 8
+	}
+
+	bladeRFInit(txvga1, txvga2)
 
 	testMessage := "*8da826f558b5027c79975332ba18;"
 	f, err := decodeDump1090Fmt(testMessage)
