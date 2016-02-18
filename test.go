@@ -1,10 +1,7 @@
 package main
 
 import (
-	"encoding/hex"
-	"errors"
 	"fmt"
-	"strings"
 )
 
 // Testing: sudo rtl_sdr -f 914000000 -s 2000000 -g -1 - | ./dump1090 --ifile -
@@ -137,128 +134,19 @@ func bladeRFTX(samples []iq) int {
 	return r
 }
 
-func decodeDump1090Fmt(s string) ([]byte, error) {
-	p := strings.Trim(s, "*;")
-
-	// Check to make sure we have either 112 bits or 56 bits in the message.
-	if len(p) != 2*ADSB_LONG_LEN && len(p) != 2*ADSB_SHORT_LEN {
-		return nil, errors.New(fmt.Sprintf("invalid length frame (%d): %s", len(p), p))
-	}
-
-	// Decode to bytes.
-
-	b, err := hex.DecodeString(p)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-func encodeBit(b uint8) []byte {
-	ret := make([]byte, 2)
-	if b != 0 {
-		ret[0] = 1
-	} else {
-		ret[1] = 1
-	}
-	return ret
-}
-
-// Each byte returned represents 0.5µs in time domain.
-func createPacket(packet []byte) []byte {
-	// 8µs preamble. 16 bits.
-	ret := make([]byte, 16)
-	ret[0] = 1
-	ret[1] = 0
-	ret[2] = 1
-	// ...
-	ret[7] = 1
-	ret[8] = 0
-	ret[9] = 1
-
-	// Now we translate each bit of 'packet' into a 1µs code.
-	// A '10' in ret is a 1 in packet, a '01' in ret is a 0 in packet.
-
-	for i := 0; i < len(packet); i++ {
-		ret = append(ret, encodeBit((uint8(packet[i])&0x80)>>7)...)
-		ret = append(ret, encodeBit((uint8(packet[i])&0x40)>>6)...)
-		ret = append(ret, encodeBit((uint8(packet[i])&0x20)>>5)...)
-		ret = append(ret, encodeBit((uint8(packet[i])&0x10)>>4)...)
-		ret = append(ret, encodeBit((uint8(packet[i])&0x08)>>3)...)
-		ret = append(ret, encodeBit((uint8(packet[i])&0x04)>>2)...)
-		ret = append(ret, encodeBit((uint8(packet[i])&0x02)>>1)...)
-		ret = append(ret, encodeBit(uint8(packet[i])&0x01)...)
-	}
-	return ret
-}
-
-// Fixed factor of 10x.
-func interpolate(packet []byte) []byte {
-	ret := make([]byte, 10*len(packet))
-	for i := 0; i < len(packet); i++ {
-		for j := 0; j < 10; j++ {
-			ret[10*i+j] = packet[i]
-		}
-	}
-	return ret
-}
-
-func iqPair(packet []byte) []iq {
-	v := make([]iq, len(packet))
-	for i := 0; i < len(packet); i++ {
-		if packet[i] != 0 {
-			v[i].i = 2040
+func main() {
+	bladeRFInit()
+	v := make([]iq, 10000)
+	for i := 0; i < 10000; i++ {
+		if i%2 == 0 {
+			v[i].i = 2047
 			v[i].q = 0
 		} else {
 			v[i].i = 0
 			v[i].q = 0
 		}
 	}
-	return v
-}
-
-func iqOut(packet []byte) ([]byte, []iq) {
-	//	packet = interpolate(packet)
-
-	v := iqPair(packet)
-
-	ret := make([]byte, len(packet)*4)
-	for i := 0; i < len(v); i++ {
-		ret[4*i] = byte(v[i].i >> 8)
-		ret[4*i+1] = byte(v[i].i & 0xFF)
-		ret[4*i+2] = byte(v[i].q >> 8)
-		ret[4*i+3] = byte(v[i].q & 0xFF)
+	for {
+		bladeRFTX(v)
 	}
-	return ret, v
-}
-
-func main() {
-	bladeRFInit()
-
-	testMessage := "*8da826f558b5027c79975332ba18;"
-	f, err := decodeDump1090Fmt(testMessage)
-	fmt.Printf("%s\n", hex.Dump(f))
-	if err != nil {
-		panic(err)
-	}
-	p := createPacket(f)
-
-	fmt.Printf("%d\n", len(p))
-
-	//	fmt.Printf("%s\n", hex.Dump(p))
-	//	fOut, err := os.Create("1090es.bin")
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//	defer fOut.Close()
-
-	_, iqV := iqOut(p)
-	fmt.Printf("len=%d\n", len(iqV))
-
-	for i := 0; i < 10000; i++ {
-		bladeRFTX(iqV)
-	}
-
-	bladeRFDeinit()
 }
