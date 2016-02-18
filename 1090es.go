@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -253,8 +252,7 @@ func main() {
 	//	defer fOut.Close()
 
 	_, iqV := iqOut(p)
-	fmt.Printf("len=%d\n", len(byteBuf))
-	//	fmt.Printf("%s\n", hex.Dump(byteBuf))
+	fmt.Printf("len=%d\n", len(iqV))
 
 	for i := 0; i < 10000; i++ {
 		bladeRFTX(iqV)
