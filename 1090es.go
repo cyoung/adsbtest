@@ -123,7 +123,7 @@ func bladeRFDeinit() {
 }
 
 func bladeRFInit(txvga1, txvga2 int) int {
-	i := int(C.bladeRFInit(txvga1, txvga2))
+	i := int(C.bladeRFInit(C.int(txvga1), C.int(txvga2)))
 	fmt.Printf("bladeRFInit=%d\n", i)
 	return i
 }
