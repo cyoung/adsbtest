@@ -87,8 +87,11 @@ printf("bladerf_enable_module\n");
 	if (status != 0) return status;
 
 	// Set txvga1 (post-LPF gain) to -18dB.
-	status = bladerf_set_txvga1(dev, -18);
+	status = bladerf_set_txvga1(dev, -8);
 printf("bladerf_set_txvga1\n");
+
+	status = bladerf_set_txvga2(dev, 0);
+printf("bladerf_set_txvga2\n");
 
 
 	return status;
@@ -215,9 +218,6 @@ func iqPair(packet []byte) []iq {
 }
 
 func iqOut(packet []byte) ([]byte, []iq) {
-	// Add some white space to sync up on the other end for testing.
-	spacing := make([]byte, 800)
-	packet = append(packet, spacing...)
 	//	packet = interpolate(packet)
 
 	v := iqPair(packet)
@@ -246,23 +246,19 @@ func main() {
 	fmt.Printf("%d\n", len(p))
 
 	//	fmt.Printf("%s\n", hex.Dump(p))
-	fOut, err := os.Create("1090es.bin")
-	if err != nil {
-		panic(err)
-	}
-	defer fOut.Close()
+	//	fOut, err := os.Create("1090es.bin")
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	defer fOut.Close()
 
-	byteBuf, iq := iqOut(p)
+	_, iqV := iqOut(p)
 	fmt.Printf("len=%d\n", len(byteBuf))
 	//	fmt.Printf("%s\n", hex.Dump(byteBuf))
 
 	for i := 0; i < 10000; i++ {
-		if i%100 == 0 {
-			fmt.Printf(".")
-		}
-		bladeRFTX(iq)
-		fOut.Write(byteBuf)
+		bladeRFTX(iqV)
 	}
-	fmt.Printf("\n")
+
 	bladeRFDeinit()
 }
